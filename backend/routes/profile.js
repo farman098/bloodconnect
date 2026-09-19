@@ -8,6 +8,7 @@ const publicProfile = (user) => ({
     id: user._id,
     name: user.name,
     email: user.email,
+    phone: user.phone || "",
     bloodType: user.bloodType,
     city: user.city,
     age: user.age,
@@ -29,7 +30,7 @@ router.get("/me", requireAuth, async (req, res) => {
 
 router.patch("/me", requireAuth, async (req, res) => {
     try {
-        const allowed = ["name", "bloodType", "city", "age", "eligibility", "availability", "lastDonationDate"];
+        const allowed = ["name", "bloodType", "city", "phone", "age", "eligibility", "availability", "lastDonationDate"];
         const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key)));
         if (updates.age !== undefined) updates.age = Number(updates.age);
         const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true }).select("-password");

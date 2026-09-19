@@ -15,14 +15,16 @@ function AuthLayout({ mode, children }) {
             <h1>{ isRegister ? <>One profile.<br /><span>Many lives touched.</span></> : <>Welcome back.<br /><span>Your match matters.</span></> }</h1>
             <p>{ isRegister ? "Join a community ready to respond when a blood type is needed most." : "Keep your donor profile current so nearby requests can reach you." }</p>
         </div></section>
-        <section className="auth-panel"><a className="auth-brand" href="/index.html"><span className="auth-brand-mark">P</span>Pulse</a>{ children }</section>
+        <section className="auth-panel"><a className="auth-brand" href="/index.html"><span className="auth-brand-mark">B</span>BloodConnect</a>{ children }</section>
     </main>;
 }
 
 export function AuthPage({ mode }) {
     const isRegister = mode === "register";
+    const nextPath = new URLSearchParams(window.location.search).get("next");
+    const requestedRole = new URLSearchParams(window.location.search).get("role") === "requester" ? "requester" : "donor";
     const [form, setForm] = useState(isRegister
-        ? { name: "", email: "", password: "", bloodType: "O+", age: "", eligibility: "Needs review" }
+        ? { name: "", email: "", phone: "", password: "", bloodType: "O+", age: "", eligibility: "Needs review", role: requestedRole }
         : { email: "", password: "" });
     const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(false);
@@ -40,9 +42,10 @@ export function AuthPage({ mode }) {
                 if (!response.ok) throw new Error(result.message || "Request failed.");
                 return result;
             });
-            localStorage.setItem("pulseToken", data.token);
-            localStorage.setItem("pulseUser", JSON.stringify(data.user));
-            goTo(data.user.role === "admin" ? "/admin.html" : data.user.role === "requester" ? "/request.html" : "/dashboard.html");
+            localStorage.setItem("bloodConnectToken", data.token);
+            localStorage.setItem("bloodConnectUser", JSON.stringify(data.user));
+            if (nextPath && data.user.role === "requester") goTo(nextPath);
+            else goTo(data.user.role === "admin" ? "/admin.html" : data.user.role === "requester" ? "/requester-dashboard.html" : "/dashboard.html");
         } catch (error) {
             setMessage(error.name === "TypeError" ? "Backend connection failed. Start the API server first." : error.message);
             setLoading(false);
@@ -50,20 +53,22 @@ export function AuthPage({ mode }) {
     }
 
     return <AuthLayout mode={ mode }><div className="auth-kicker">{ isRegister ? "Join the community" : "Welcome back" }</div>
-        <h2>{ isRegister ? "Become a donor." : "Log in to Pulse." }</h2>
+        <h2>{ isRegister ? "Become a donor." : "Log in to BloodConnect." }</h2>
         <p>{ isRegister ? "Create your profile and be ready for the next request in your area." : "Manage your donor profile and stay ready to help." }</p>
         <form className="auth-form" onSubmit={ submit }>
             { isRegister && <label>Full name<input name="name" value={ form.name } onChange={ update } placeholder="Ayesha Khan" required /></label> }
             <label>Email address<input name="email" type="email" value={ form.email } onChange={ update } placeholder="you@example.com" required /></label>
+            { isRegister && <label>Phone number<input name="phone" type="tel" value={ form.phone } onChange={ update } placeholder="+92 300 1234567" /></label> }
             <label>Password<input name="password" type="password" value={ form.password } onChange={ update } minLength="6" placeholder="Your password" required /></label>
             { isRegister && <>
                 <label>Blood type<select name="bloodType" value={ form.bloodType } onChange={ update }>{ bloodTypes.map((type) => <option key={ type }>{ type }</option>) }</select></label>
                 <label>Age<input name="age" type="number" min="16" max="100" value={ form.age } onChange={ update } required /></label>
                 <label>Eligibility<select name="eligibility" value={ form.eligibility } onChange={ update }><option>Needs review</option><option>Eligible</option><option>Not eligible</option></select></label>
+                <label>Account type<select name="role" value={ form.role } onChange={ update }><option value="donor">Donor</option><option value="requester">Requester</option></select></label>
             </> }
             <p className="auth-message" aria-live="polite">{ message }</p><button className="auth-submit" type="submit" disabled={ loading }>{ loading ? "Please wait..." : isRegister ? "Create donor profile" : "Log in" }</button>
         </form>
-        <p className="auth-switch">{ isRegister ? "Already have an account? " : "New to Pulse? " }<a href={ isRegister ? "/login.html" : "/register.html" }>{ isRegister ? "Log in" : "Create a donor profile" }</a></p>
+        <p className="auth-switch">{ isRegister ? "Already have an account? " : "New to BloodConnect? " }<a href={ isRegister ? `/login.html${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}` : `/register.html${nextPath ? `?next=${encodeURIComponent(nextPath)}&role=requester` : ""}` }>{ isRegister ? "Log in" : nextPath === "/request.html" ? "Create a requester account" : "Create a donor profile" }</a></p>
     </AuthLayout>;
 }
 
@@ -77,7 +82,7 @@ function Protected({ children, role }) {
 }
 
 function AppTopbar() {
-    return <header className="topbar"><a className="brand" href="/index.html"><span>P</span>Pulse</a><button className="logout" onClick={ () => { clearSession(); goTo("/login.html"); } }>Log out</button></header>;
+    return <header className="topbar"><a className="brand" href="/index.html" aria-label="BloodConnect home"><span className="brand-mark" aria-hidden="true">B</span><span className="brand-name">BloodConnect</span></a><button className="logout" onClick={ () => { clearSession(); goTo("/login.html"); } }>Log out</button></header>;
 }
 
 function LegacyDashboardPage() {
@@ -108,15 +113,15 @@ export function ProfilePage() {
     const [form, setForm] = useState({}); const [history, setHistory] = useState([]); const [message, setMessage] = useState("Loading profile...");
     useEffect(() => { apiRequest("/profile/me").then((data) => { setForm({ ...data, lastDonationDate: data.lastDonationDate ? new Date(data.lastDonationDate).toISOString().slice(0, 10) : "" }); setHistory(data.donationHistory || []); setMessage(""); }).catch((error) => setMessage(error.message)); }, []);
     const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
-    async function submit(event) { event.preventDefault(); setMessage("Saving..."); try { const data = await apiRequest("/profile/me", { method: "PATCH", body: JSON.stringify(form) }); localStorage.setItem("pulseUser", JSON.stringify(data)); setMessage("Profile updated successfully."); } catch (error) { setMessage(error.message); } }
-    return <Protected><main className="profile-page"><section className="profile-box"><a className="back" href="/dashboard.html">← Back to dashboard</a><div className="eyebrow">Donor profile</div><h1>Keep your details current.</h1><p>Accurate information helps Pulse send the right emergency request to you.</p><form className="profile-form" onSubmit={ submit }>{ [["name", "Full name"], ["email", "Email"]].map(([name, label]) => <label key={ name }>{ label }<input name={ name } value={ form[name] || "" } onChange={ update } readOnly={ name === "email" } required /></label>) }<label>Blood type<select name="bloodType" value={ form.bloodType || "O+" } onChange={ update }>{ bloodTypes.map((type) => <option key={ type }>{ type }</option>) }</select></label><label>Age<input name="age" type="number" min="16" max="100" value={ form.age || "" } onChange={ update } required /></label><label>Eligibility<select name="eligibility" value={ form.eligibility || "Needs review" } onChange={ update }><option>Needs review</option><option>Eligible</option><option>Not eligible</option></select></label><label>Availability<select name="availability" value={ form.availability || "Available" } onChange={ update }><option>Available</option><option>Not Available</option></select></label><label>Last donation date<input name="lastDonationDate" type="date" value={ form.lastDonationDate || "" } onChange={ update } /></label><p className="message" aria-live="polite">{ message }</p><button type="submit">Save profile</button></form><section className="history"><div className="eyebrow">Donation history</div>{ history.length ? history.map((item) => <div className="history-item" key={ `${item.date}-${item.location}` }><strong>{ new Date(item.date).toLocaleDateString() }</strong><span>{ item.location || "Location not added" } · { item.units } unit(s)</span></div>) : <p>No donations recorded yet.</p> }</section></section></main></Protected>;
+    async function submit(event) { event.preventDefault(); setMessage("Saving..."); try { const data = await apiRequest("/profile/me", { method: "PATCH", body: JSON.stringify(form) }); localStorage.setItem("bloodConnectUser", JSON.stringify(data)); setMessage("Profile updated successfully."); } catch (error) { setMessage(error.message); } }
+    return <Protected><main className="profile-page"><section className="profile-box"><a className="back" href="/dashboard.html">← Back to dashboard</a><div className="eyebrow">Donor profile</div><h1>Keep your details current.</h1><p>Accurate information helps BloodConnect send the right emergency request to you.</p><form className="profile-form" onSubmit={ submit }>{ [["name", "Full name"], ["email", "Email"]].map(([name, label]) => <label key={ name }>{ label }<input name={ name } value={ form[name] || "" } onChange={ update } readOnly={ name === "email" } required /></label>) }<label>Blood type<select name="bloodType" value={ form.bloodType || "O+" } onChange={ update }>{ bloodTypes.map((type) => <option key={ type }>{ type }</option>) }</select></label><label>Age<input name="age" type="number" min="16" max="100" value={ form.age || "" } onChange={ update } required /></label><label>Eligibility<select name="eligibility" value={ form.eligibility || "Needs review" } onChange={ update }><option>Needs review</option><option>Eligible</option><option>Not eligible</option></select></label><label>Availability<select name="availability" value={ form.availability || "Available" } onChange={ update }><option>Available</option><option>Not Available</option></select></label><label>Last donation date<input name="lastDonationDate" type="date" value={ form.lastDonationDate || "" } onChange={ update } /></label><p className="message" aria-live="polite">{ message }</p><button type="submit">Save profile</button></form><section className="history"><div className="eyebrow">Donation history</div>{ history.length ? history.map((item) => <div className="history-item" key={ `${item.date}-${item.location}` }><strong>{ new Date(item.date).toLocaleDateString() }</strong><span>{ item.location || "Location not added" } · { item.units } unit(s)</span></div>) : <p>No donations recorded yet.</p> }</section></section></main></Protected>;
 }
 
 export function RequestPage() {
-    const [form, setForm] = useState({ patientName: "", bloodType: "O+", units: 1, hospital: "", city: "", urgency: "Urgent" }); const [message, setMessage] = useState("");
+    const [form, setForm] = useState({ patientName: "", bloodType: "O+", units: 1, hospital: "", city: "", urgencyLevel: "Normal" }); const [message, setMessage] = useState("");
     const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
-    async function submit(event) { event.preventDefault(); setMessage("Submitting..."); try { await apiRequest("/requests", { method: "POST", body: JSON.stringify(form) }); goTo("/dashboard.html"); } catch (error) { setMessage(error.message); } }
-    return <Protected><main className="request-page"><section className="request-box"><a className="back" href="/index.html">← Back to home</a><h1>Request blood.</h1><p>Share the essentials so nearby verified donors can respond quickly. Admins and donors will see this request.</p><form className="request-form" onSubmit={ submit }>{ [["patientName", "Patient name", "Patient full name"], ["hospital", "Hospital", "Hospital name"], ["city", "City", "Peshawar"]].map(([name, label, placeholder]) => <label key={ name }>{ label }<input name={ name } value={ form[name] } onChange={ update } placeholder={ placeholder } required /></label>) }<label>Blood type<select name="bloodType" value={ form.bloodType } onChange={ update }>{ bloodTypes.map((type) => <option key={ type }>{ type }</option>) }</select></label><label>Units needed<input name="units" type="number" min="1" max="20" value={ form.units } onChange={ update } required /></label><label>Urgency<select name="urgency" value={ form.urgency } onChange={ update }><option>Critical</option><option>Urgent</option><option>Normal</option></select></label><p className="message" aria-live="polite">{ message }</p><button className="request-submit" type="submit">Submit blood request</button></form></section></main></Protected>;
+    async function submit(event) { event.preventDefault(); setMessage("Submitting..."); try { await apiRequest("/requests", { method: "POST", body: JSON.stringify(form) }); goTo("/requester-dashboard.html"); } catch (error) { setMessage(error.message); } }
+    return <Protected role="requester"><main className="request-page"><section className="request-box"><a className="back" href="/index.html">← Back to home</a><h1>Request blood.</h1><p>Share the essentials so nearby verified donors can respond quickly. Admins and donors will see this request.</p><form className="request-form" onSubmit={ submit }>{ [["patientName", "Patient name", "Patient full name"], ["hospital", "Hospital", "Hospital name"], ["city", "City", "Peshawar"]].map(([name, label, placeholder]) => <label key={ name }>{ label }<input name={ name } value={ form[name] } onChange={ update } placeholder={ placeholder } required /></label>) }<label>Blood type<select name="bloodType" value={ form.bloodType } onChange={ update }>{ bloodTypes.map((type) => <option key={ type }>{ type }</option>) }</select></label><label>Units needed<input name="units" type="number" min="1" max="20" value={ form.units } onChange={ update } required /></label><label>Urgency level<select name="urgencyLevel" value={ form.urgencyLevel } onChange={ update }><option>Normal</option><option>Emergency</option></select></label><p className="message" aria-live="polite">{ message }</p><button className="request-submit" type="submit">Submit blood request</button></form></section></main></Protected>;
 }
 
 export function AdminPage() {
@@ -135,6 +140,14 @@ const relativeTime = (date) => {
     return `${Math.floor(seconds / 86400)}d ago`;
 };
 
+const defaultDonationDate = () => {
+    const date = new Date(Date.now() + 86400000);
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().slice(0, 16);
+};
+
+const directionsUrl = (request) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${request.hospital}, ${request.city}`)}`;
+
 function DonorDashboard() {
     const { user } = getSession();
     const [profile, setProfile] = useState({});
@@ -147,6 +160,8 @@ function DonorDashboard() {
     const [error, setError] = useState("");
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [message, setMessage] = useState("");
+    const [confirmedDate, setConfirmedDate] = useState(defaultDonationDate);
+    const [actionLoading, setActionLoading] = useState("");
 
     async function loadDashboard() {
         setLoading(true);
@@ -176,38 +191,90 @@ function DonorDashboard() {
     }, [filter, sort]);
 
     async function acceptRequest() {
+        setActionLoading("accept");
         try {
-            const result = await apiRequest(`/requests/${selectedRequest.id}/accept`, { method: "POST", body: JSON.stringify({}) });
+            const result = await apiRequest(`/requests/${selectedRequest.id}/accept`, { method: "POST", body: JSON.stringify({ confirmedDate }) });
             setSelectedRequest(null);
-            setMessage(`Accepted. Contact ${result.requester?.name || "the requester"} at ${result.requester?.email || "the email on your account"}.`);
+            setMessage(`Accepted. Contact ${result.requester?.firstName || "the requester"} at ${result.requester?.phone || result.requester?.email || "the available contact"}.`);
             loadDashboard();
         } catch (acceptError) {
             setMessage(acceptError.message);
+        } finally {
+            setActionLoading("");
         }
     }
 
     async function cancelAcceptance(id) {
+        setActionLoading(`cancel-${id}`);
         try {
             await apiRequest(`/requests/${id}/cancel`, { method: "POST", body: JSON.stringify({}) });
             setMessage("Your acceptance was cancelled and the request is available again.");
             loadDashboard();
         } catch (cancelError) {
             setMessage(cancelError.message);
+        } finally {
+            setActionLoading("");
         }
     }
 
-    return <Protected><AppTopbar /><main className="wrap donor-dashboard">
+    return <Protected role="donor"><AppTopbar /><main className="wrap donor-dashboard">
         <div className="heading"><div><div className="eyebrow">Donor dashboard</div><h1>Hello, <span>{ user?.name || "Donor" }</span>.</h1></div><p>Live requests matched to your blood group, with privacy protected until you accept.</p></div>
         <section className="stats donor-stats"><div className="stat"><strong>{ profile.bloodType || "--" }</strong><span>Your blood group</span></div><div className="stat"><strong>{ activity.totalDonations }</strong><span>Total donations</span></div><div className="stat"><strong>{ activity.acceptedRequests.filter((item) => item.status === "accepted").length }</strong><span>Active acceptances</span></div><div className="stat"><strong>{ activity.lastDonationDate ? new Date(activity.lastDonationDate).toLocaleDateString() : "Not recorded" }</strong><span>Last donation</span></div></section>
         { notifications.length > 0 && <section className="notification-strip"><strong>New matching updates</strong><span>{ notifications[0].message }</span></section> }
         <div className="dashboard-toolbar"><div><div className="eyebrow">Available blood requests</div><h2>People who need your help.</h2></div><div className="feed-controls"><label>Blood group<select value={ filter } onChange={ (event) => setFilter(event.target.value) }><option value="mine">My blood group ({ profile.bloodType || "--" })</option><option value="all">All groups</option>{ bloodTypes.map((type) => <option value={ type } key={ type }>{ type }</option>) }</select></label><label>Sort by<select value={ sort } onChange={ (event) => setSort(event.target.value) }><option value="newest">Newest first</option><option value="urgent">Most urgent first</option><option value="nearest">Nearest first</option></select></label></div></div>
         { message && <p className="dashboard-message" aria-live="polite">{ message }</p> }
-        { error ? <div className="feed-state error-state"><strong>We could not load requests.</strong><span>{ error }</span><button className="button primary" onClick={ loadDashboard }>Retry</button></div> : loading ? <div className="feed-state"><span className="spinner" aria-hidden="true" /><strong>Loading available requests...</strong></div> : requests.length ? <section className="request-list donor-feed">{ requests.map((request) => <article className="request-card donor-request-card" key={ request.id }><div className="blood">{ request.bloodType }</div><div className="request-main"><div className="request-title"><h3>{ request.hospital }</h3><span className={ `urgency-badge ${request.urgencyLabel.toLowerCase()}` }>{ request.urgencyLabel }</span></div><p>{ request.city } · { request.units } unit(s) needed</p><small>Posted { relativeTime(request.createdAt) } · Patient contact hidden until acceptance</small>{ request.responseStatus === "accepted" ? <button className="request-action cancel-action" onClick={ () => cancelAcceptance(request.id) }>Cancel my acceptance</button> : request.eligibility.eligible ? <button className="request-action" onClick={ () => setSelectedRequest(request) }>Accept Request</button> : <p className="eligibility-warning">You are not eligible to donate yet. Eligible on { new Date(request.eligibility.eligibleOn).toLocaleDateString() }.</p> }</div><div className="request-side"><strong>{ request.units }</strong><span>units</span></div></article>) }</section> : <div className="feed-state empty-state"><span className="empty-icon" aria-hidden="true">+</span><strong>No matching requests available right now</strong><span>Try viewing all blood groups or check back soon.</span></div> }
-        <section className="activity-section"><div className="eyebrow">Your activity</div><h2>Accepted requests</h2>{ activity.acceptedRequests.length ? <div className="activity-list">{ activity.acceptedRequests.map((item) => <article className="activity-item" key={ item._id }><div><strong>{ item.requestId?.hospital || "Request unavailable" }</strong><span>{ item.requestId?.bloodType || "--" } · { item.requestId?.city || "Location unavailable" }</span></div><span className={ `activity-status ${item.status}` }>{ item.status === "accepted" ? "Confirmed" : item.status }</span></article>) }</div> : <p className="empty-copy">Your accepted requests will appear here.</p> }</section>
-        { selectedRequest && <div className="modal-backdrop" role="presentation" onClick={ () => setSelectedRequest(null) }><section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onClick={ (event) => event.stopPropagation() }><button className="modal-close" onClick={ () => setSelectedRequest(null) } aria-label="Close confirmation">×</button><div className="eyebrow">Confirm availability</div><h2 id="confirm-title">Can you help at { selectedRequest.hospital }?</h2><p>By accepting, you confirm that you can coordinate with the requester. Their contact details will be shared with you after confirmation.</p><div className="modal-actions"><button className="button" onClick={ () => setSelectedRequest(null) }>Not now</button><button className="button primary" onClick={ acceptRequest }>Confirm acceptance</button></div></section></div> }
+        { error ? <div className="feed-state error-state"><strong>We could not load requests.</strong><span>{ error }</span><button className="button primary" onClick={ loadDashboard }>Retry</button></div> : loading ? <div className="feed-state"><span className="spinner" aria-hidden="true" /><strong>Loading available requests...</strong></div> : requests.length ? <section className="request-list donor-feed">{ requests.map((request) => <article className={ `request-card donor-request-card ${request.urgencyLevel === "Emergency" ? "emergency-request" : ""}` } key={ request.id }><div className="blood">{ request.bloodType }</div><div className="request-main"><div className="request-title"><h3>{ request.hospital }</h3><span className={ `urgency-badge ${request.urgencyLevel === "Emergency" ? "emergency" : "normal"}` }>{ request.urgencyLevel || request.urgencyLabel }</span></div><p>{ request.city } · { request.units } unit(s) needed</p><small>Posted { relativeTime(request.createdAt) } · Patient contact hidden until acceptance</small>{ request.responseStatus === "accepted" ? <button className="request-action cancel-action" onClick={ () => cancelAcceptance(request.id) } disabled={ actionLoading === `cancel-${request.id}` }>{ actionLoading === `cancel-${request.id}` ? "Cancelling..." : "Cancel my acceptance" }</button> : request.eligibility.eligible ? <button className="request-action" onClick={ () => { setConfirmedDate(defaultDonationDate()); setSelectedRequest(request); } }>Accept Request</button> : <p className="eligibility-warning">You are not eligible to donate yet. Eligible on { new Date(request.eligibility.eligibleOn).toLocaleDateString() }.</p> }</div><div className="request-side"><strong>{ request.units }</strong><span>units</span></div></article>) }</section> : <div className="feed-state empty-state"><span className="empty-icon" aria-hidden="true">+</span><strong>No matching requests available right now</strong><span>Try viewing all blood groups or check back soon.</span></div> }
+        <section className="activity-section"><div className="eyebrow">Your activity</div><h2>Accepted requests</h2>{ activity.acceptedRequests.length ? <div className="activity-list">{ activity.acceptedRequests.map((item) => <article className="activity-item receipt-card" key={ item._id }><div><strong>{ item.requestId?.hospital || "Request unavailable" }</strong><span>{ item.requestId?.bloodType || "--" } · { item.requestId?.city || "Location unavailable" }</span><span>{ item.requestId?.confirmedDate ? new Date(item.requestId.confirmedDate).toLocaleString() : "Date not confirmed" }</span>{ item.requestId?.createdBy && <span>Contact requester: { item.requestId.createdBy.phone || item.requestId.createdBy.email }</span> }</div><div className="receipt-actions"><span className={ `activity-status ${item.status}` }>{ item.status === "accepted" ? "Confirmed" : item.status }</span>{ item.requestId?.createdBy?.phone && <a className="button" href={ `tel:${item.requestId.createdBy.phone}` }>Contact Requester</a> }{ item.requestId?.createdBy?.email && !item.requestId?.createdBy?.phone && <a className="button" href={ `mailto:${item.requestId.createdBy.email}` }>Contact Requester</a> }{ item.requestId && <a className="button" href={ directionsUrl(item.requestId) } target="_blank" rel="noreferrer">Get Directions</a> }{ item.status === "accepted" && item.requestId && <button className="button" onClick={ () => cancelAcceptance(item.requestId._id) } disabled={ actionLoading === `cancel-${item.requestId._id}` }>{ actionLoading === `cancel-${item.requestId._id}` ? "Cancelling..." : "Cancel" }</button> }</div></article>) }</div> : <p className="empty-copy">Your accepted requests will appear here.</p> }</section>
+        { selectedRequest && <div className="modal-backdrop" role="presentation" onClick={ () => setSelectedRequest(null) }><section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onClick={ (event) => event.stopPropagation() }><button className="modal-close" onClick={ () => setSelectedRequest(null) } aria-label="Close confirmation">×</button><div className="eyebrow">Confirm availability</div><h2 id="confirm-title">Can you help at { selectedRequest.hospital }?</h2><p><strong>{ selectedRequest.bloodType }</strong> · { selectedRequest.units } unit(s) · { selectedRequest.urgencyLevel || selectedRequest.urgencyLabel }</p><p>Choose when you can donate. Contact details will be revealed after confirmation.</p><label className="modal-date">Donation date and time<input type="datetime-local" min={ defaultDonationDate() } value={ confirmedDate } onChange={ (event) => setConfirmedDate(event.target.value) } /></label><div className="modal-actions"><button className="button" onClick={ () => setSelectedRequest(null) } disabled={ actionLoading === "accept" }>Cancel</button><button className="button primary" onClick={ acceptRequest } disabled={ actionLoading === "accept" }>{ actionLoading === "accept" ? "Confirming..." : "Confirm acceptance" }</button></div></section></div> }
     </main></Protected>;
 }
 
 export function DashboardPage() {
     return <DonorDashboard />;
+}
+
+export function RequesterDashboard() {
+    const { user } = getSession();
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [message, setMessage] = useState("");
+    const [actionLoading, setActionLoading] = useState("");
+    const [thankYouDrafts, setThankYouDrafts] = useState({});
+
+    async function loadRequests() {
+        setLoading(true);
+        try {
+            setRequests(await apiRequest("/requests/mine"));
+            setMessage("");
+        } catch (error) {
+            setMessage(error.message || "Unable to load your requests.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    useEffect(() => { loadRequests(); }, []);
+
+    async function completeRequest(id) {
+        setActionLoading(`complete-${id}`);
+        try { await apiRequest(`/requests/${id}/complete`, { method: "POST", body: JSON.stringify({}) }); setMessage("Request marked as completed."); await loadRequests(); }
+        catch (error) { setMessage(error.message || "Failed to complete request."); }
+        finally { setActionLoading(""); }
+    }
+
+    async function sendThankYou(id) {
+        const text = thankYouDrafts[id]?.trim();
+        if (!text) return setMessage("Write a thank-you message first.");
+        setActionLoading(`thank-you-${id}`);
+        try { await apiRequest(`/requests/${id}/thank-you`, { method: "POST", body: JSON.stringify({ message: text }) }); setThankYouDrafts((current) => ({ ...current, [id]: "" })); setMessage("Thank-you message sent."); }
+        catch (error) { setMessage(error.message || "Unable to send the thank-you message."); }
+        finally { setActionLoading(""); }
+    }
+
+    return <Protected role="requester"><AppTopbar /><main className="wrap requester-dashboard">
+        <div className="heading"><div><div className="eyebrow">Requester dashboard</div><h1>Hello, <span>{ user?.name || "Requester" }</span>.</h1></div><p>Track the blood requests you have submitted and their latest status.</p></div>
+        <div className="actions"><a className="button primary" href="/request.html">Create blood request</a><button className="button" onClick={ loadRequests }>Refresh requests</button></div>
+        <p className="dashboard-message" aria-live="polite">{ message }</p>
+        { loading ? <div className="feed-state"><span className="spinner" aria-hidden="true" /><strong>Loading your requests...</strong></div> : requests.length ? <section className="request-list">{ requests.map((request) => <article className={ `request-card requester-request-card ${request.urgencyLevel === "Emergency" ? "emergency-request" : ""}` } key={ request._id }><div className="blood">{ request.bloodType }</div><div><div className="request-title"><h3>{ request.patientName }</h3><span className={ `urgency-badge ${request.urgencyLevel === "Emergency" ? "emergency" : "normal"}` }>{ request.urgencyLevel || "Normal" }</span></div><p>{ request.hospital }, { request.city } · { request.units } unit(s)</p><small>Submitted { new Date(request.createdAt).toLocaleString() }</small>{ request.matchedDonorId && <><p className="matched-contact">Contact donor: { request.matchedDonorId.phone || request.matchedDonorId.email }</p>{ request.matchedDonorId.phone ? <a className="button" href={ `tel:${request.matchedDonorId.phone}` }>Contact Donor</a> : <a className="button" href={ `mailto:${request.matchedDonorId.email}` }>Contact Donor</a> }</> }{ request.status === "Matched" && request.confirmedDate && new Date(request.confirmedDate) <= new Date() && <button className="request-action" onClick={ () => completeRequest(request._id) } disabled={ actionLoading === `complete-${request._id}` }>{ actionLoading === `complete-${request._id}` ? "Completing..." : "Mark as Completed" }</button> }{ request.status === "Completed" && request.matchedDonorId && <div className="thank-you-box"><input value={ thankYouDrafts[request._id] || "" } onChange={ (event) => setThankYouDrafts((current) => ({ ...current, [request._id]: event.target.value })) } placeholder="Send a thank-you message" /><button className="request-action" onClick={ () => sendThankYou(request._id) } disabled={ actionLoading === `thank-you-${request._id}` }>{ actionLoading === `thank-you-${request._id}` ? "Sending..." : "Send thanks" }</button></div> }</div><div className="urgency"><strong>{ request.status }</strong>{ request.confirmedDate && <small>{ new Date(request.confirmedDate).toLocaleString() }</small> }</div></article>) }</section> : <div className="feed-state empty-state"><strong>You have not submitted any blood requests yet.</strong><a className="button primary" href="/request.html">Create your first request</a></div> }
+    </main></Protected>;
 }

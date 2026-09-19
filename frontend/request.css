@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap");
 
 :root {
     --paper: #f5f0e6;
@@ -129,4 +129,57 @@ body {
     .message {
         grid-column: auto
     }
+}
+
+:root {
+    --paper: #f7f1ea;
+    --ink: #170d0c;
+    --soft: #766b65;
+    --red: #c81e3a;
+    --line: #d9cec4;
+    --white: #fffaf5
+}
+
+body {
+    background: var(--ink);
+    font-family: "DM Sans", sans-serif
+}
+
+.request-page {
+    background:
+        radial-gradient(circle at 85% 18%, rgba(200, 155, 60, .25), transparent 18rem),
+        linear-gradient(135deg, var(--ink) 0 55%, var(--red) 55%)
+}
+
+.request-box {
+    border: 1px solid rgba(23, 13, 12, .1);
+    border-radius: 20px;
+    background: rgba(255, 250, 245, .96);
+    box-shadow: 0 24px 70px rgba(23, 13, 12, .24)
+}
+
+.request-box h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    letter-spacing: 0
+}
+
+.request-form input,
+.request-form select {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--white);
+    transition: border-color .2s, box-shadow .2s
+}
+
+.request-form input:focus,
+.request-form select:focus {
+    border-color: var(--red);
+    box-shadow: 0 0 0 4px rgba(200, 30, 58, .1)
+}
+
+.request-submit {
+    border-radius: 999px;
+    background: var(--red);
+    border-color: var(--red)
 }

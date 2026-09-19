@@ -3,6 +3,7 @@ import requireAuth from "../middleware/auth.js";
 import User from "../models/User.js";
 import BloodRequest from "../models/BloodRequest.js";
 import ContactMessage from "../models/ContactMessage.js";
+import { completeRequest } from "../controllers/requestActions.js";
 
 const router = express.Router();
 
@@ -60,6 +61,7 @@ router.patch("/requests/:id", async (req, res) => {
             return res.status(400).json({ message: "Invalid request status." });
         }
 
+        if (status === "Completed") return completeRequest(req, res);
         const request = await BloodRequest.findByIdAndUpdate(req.params.id, { status }, { new: true });
         if (!request) return res.status(404).json({ message: "Blood request not found." });
         res.json(request);

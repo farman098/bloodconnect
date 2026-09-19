@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import "./app.css";
-import { apiRequest, getSession, goTo } from "./api.js";
+import { apiRequest, clearSession, getSession, goTo } from "./api.js";
 import {
     AuthPage,
     DashboardPage,
     ProfilePage,
     RequestPage,
+    RequesterDashboard,
 } from "./pages.jsx";
 import AdminPage from "./AdminPage.jsx";
+import AnimatedBackground from "./AnimatedBackground.jsx";
 
 const navLinks = [
-    ["Why Pulse", "why-pulse"],
+    ["Why BloodConnect", "why-bloodconnect"],
     ["Impact", "impact"],
     ["Donors", "donors"],
     ["Resources", "resources"],
@@ -35,7 +37,7 @@ function HomePage() {
         units: 1,
         hospital: "",
         city: "Lahore",
-        urgency: "Urgent",
+        urgencyLevel: "Normal",
     });
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [requestMessage, setRequestMessage] = useState("");
@@ -100,9 +102,13 @@ function HomePage() {
     const handleRequestSubmit = async (event) => {
         event.preventDefault();
         const { token, user } = getSession();
-        if (!token || user?.role !== "requester") {
-            setRequestMessage("Please log in with a requester account before submitting a blood request.");
-            setTimeout(() => goTo("/login.html"), 1200);
+        if (!token) {
+            goTo("/login.html?next=/request.html");
+            return;
+        }
+        if (user?.role !== "requester") {
+            clearSession();
+            goTo("/login.html?next=/request.html");
             return;
         }
 
@@ -115,7 +121,7 @@ function HomePage() {
             const data = await apiRequest("/home");
             setStats(data.stats || []);
             setRecentRequests(data.recentRequests || []);
-            setRequestForm({ patientName: "", bloodType: "O+", units: 1, hospital: "", city: "Lahore", urgency: "Urgent" });
+            setRequestForm({ patientName: "", bloodType: "O+", units: 1, hospital: "", city: "Lahore", urgencyLevel: "Normal" });
             setRequestMessage("Blood request submitted. Admins and donors can now see it.");
         } catch (error) {
             setRequestMessage(error.message || "Unable to submit the blood request.");
@@ -141,9 +147,9 @@ function HomePage() {
     return (
         <div className="app-shell">
             <header className="navbar">
-                <div className="brand" aria-label="Pulse brand">
-                    <span className="pulse-icon" aria-hidden="true" />
-                    Pulse
+                <div className="brand" aria-label="BloodConnect brand">
+                    <span className="bloodconnect-icon" aria-hidden="true" />
+                    BloodConnect
                 </div>
 
                 <nav aria-label="Main navigation">
@@ -166,6 +172,7 @@ function HomePage() {
 
             <main>
                 <section className="hero">
+                    <AnimatedBackground />
                     <div className="hero-content">
                         <div className="small-label">
                             <span className="live-dot" aria-hidden="true" />
@@ -179,7 +186,7 @@ function HomePage() {
                         </h1>
 
                         <p>
-                            Pulse connects hospitals, donors, and communities through a trusted digital platform
+                            BloodConnect connects hospitals, donors, and communities through a trusted digital platform
                             designed for emergency support, reliable coordination, and rapid response.
                         </p>
 
@@ -198,7 +205,7 @@ function HomePage() {
                         </div>
                     </div>
 
-                    <div className="hero-visual" aria-label="Pulse donor platform illustration">
+                    <div className="hero-visual" aria-label="BloodConnect donor platform illustration">
                         <div className="orbit orbit-one" />
                         <div className="orbit orbit-two" />
                         <div className="orbit orbit-three" />
@@ -247,7 +254,7 @@ function HomePage() {
                     ) }
                 </section>
 
-                <section className="feature-section" id="why-pulse">
+                <section className="feature-section" id="why-bloodconnect">
                     <div className="section-heading">
                         <div className="section-label">How it works</div>
                         <h2>Faster coordination. Safer outcomes.</h2>
@@ -382,10 +389,9 @@ function HomePage() {
                                         value={ requestForm.city }
                                         onChange={ handleRequestChange }
                                     />
-                                    <select name="urgency" value={ requestForm.urgency } onChange={ handleRequestChange }>
+                                    <select name="urgencyLevel" value={ requestForm.urgencyLevel } onChange={ handleRequestChange }>
                                         <option value="Normal">Normal</option>
-                                        <option value="Urgent">Urgent</option>
-                                        <option value="Critical">Critical</option>
+                                        <option value="Emergency">Emergency</option>
                                     </select>
                                     <button type="submit" className="submit-btn accent">
                                         Submit request
@@ -399,7 +405,7 @@ function HomePage() {
 
                 <section className="testimonial" id="ratings">
                     <div className="section-label">Community ratings</div>
-                    <h2>Real experiences from the Pulse community.</h2>
+                    <h2>Real experiences from the BloodConnect community.</h2>
                     <div className="rating-summary">
                         <strong>{ ratings.average ? ratings.average.toFixed(1) : "--" }</strong>
                         <span>{ ratings.count ? `${ratings.count} approved rating${ratings.count === 1 ? "" : "s"}` : "No ratings yet" }</span>
@@ -443,10 +449,10 @@ function HomePage() {
                         <h2>Let&apos;s make support feel closer.</h2>
                         <p>
                             Need help with a blood request, donor profile, or hospital partnership? Send us a message
-                            and the Pulse team will help you find the next step.
+                            and the BloodConnect team will help you find the next step.
                         </p>
                         <div className="contact-details">
-                            <a href="mailto:hello@pulsecare.org">hello@pulsecare.org</a>
+                            <a href="mailto:hello@bloodconnect.org">hello@bloodconnect.org</a>
                             <a href="tel:+923001234567">+92 300 123 4567</a>
                             <span>Available every day, 9:00 AM - 9:00 PM</span>
                         </div>
@@ -484,6 +490,7 @@ export default function App() {
     }
 
     if (path === "/dashboard.html") return <DashboardPage />;
+    if (path === "/requester-dashboard.html") return <RequesterDashboard />;
     if (path === "/profile.html") return <ProfilePage />;
     if (path === "/request.html" || path === "/request-access.html") return <RequestPage />;
     if (path === "/admin.html") return <AdminPage />;

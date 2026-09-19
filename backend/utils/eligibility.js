@@ -21,3 +21,7 @@ export function formatUrgency(urgency) {
 export function urgencyWeight(urgency) {
     return urgency === "Critical" || urgency === "Urgent" ? 3 : urgency === "Normal" ? 2 : 1;
 }
+
+export function urgencyLevelWeight(urgencyLevel, legacyUrgency) {
+    return urgencyLevel === "Emergency" || legacyUrgency === "Critical" || legacyUrgency === "Urgent" ? 1 : 0;
+}

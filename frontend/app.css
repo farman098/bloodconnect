@@ -79,7 +79,7 @@ main {
     font-weight: 600;
 }
 
-.pulse-icon {
+.bloodconnect-icon {
     width: 13px;
     height: 13px;
     border-radius: 4px 50% 50% 50%;
@@ -141,6 +141,10 @@ main {
     isolation: isolate;
 }
 
+.hero>.animated-background {
+    z-index: -2;
+}
+
 .hero::before {
     content: "";
     position: absolute;
@@ -156,7 +160,7 @@ main {
 }
 
 .hero::after {
-    content: "PULSE / 01";
+    content: "BLOODCONNECT / 01";
     position: absolute;
     right: 7%;
     bottom: 28px;

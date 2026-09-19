@@ -9,6 +9,7 @@ import contactRoutes from "./routes/contact.js";
 import adminRoutes from "./routes/admin.js";
 import homeRoutes from "./routes/home.js";
 import ratingRoutes from "./routes/ratings.js";
+import { startReminderJob } from "./jobs/reminders.js";
 
 dotenv.config();
 dotenv.config({ path: "./atlas-credentials.env" });
@@ -39,4 +40,5 @@ app.get("/", (req, res) => {
 
 app.listen(3000, () => {
     console.log("Server is running on port 3000");
+    startReminderJob();
 });

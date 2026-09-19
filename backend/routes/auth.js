@@ -14,7 +14,7 @@ const createToken = (user) =>
 
 router.post("/register", async (req, res) => {
     try {
-        const { name, email, password, bloodType, age, city, eligibility, role = "donor" } = req.body;
+        const { name, email, password, bloodType, age, city, phone, eligibility, role = "donor" } = req.body;
         const normalizedEmail = email?.trim().toLowerCase();
 
         if (!name || !normalizedEmail || !password || !bloodType) {
@@ -37,6 +37,7 @@ router.post("/register", async (req, res) => {
             password: hashedPassword,
             bloodType,
             city: city?.trim(),
+            phone: phone?.trim(),
             age: age ? Number(age) : undefined,
             eligibility: eligibility || "Needs review",
             role: role === "requester" ? "requester" : "donor",
@@ -45,7 +46,7 @@ router.post("/register", async (req, res) => {
         return res.status(201).json({
             message: "Account created successfully.",
             token: createToken(user),
-            user: { id: user._id, name: user.name, email: user.email, bloodType: user.bloodType, city: user.city, age: user.age, eligibility: user.eligibility, availability: user.availability, role: user.role },
+            user: { id: user._id, name: user.name, email: user.email, phone: user.phone, bloodType: user.bloodType, city: user.city, age: user.age, eligibility: user.eligibility, availability: user.availability, role: user.role },
         });
     } catch (error) {
         console.error("Register error:", error.message);
@@ -66,7 +67,7 @@ router.post("/login", async (req, res) => {
         return res.json({
             message: "Login successful.",
             token: createToken(user),
-            user: { id: user._id, name: user.name, email: user.email, bloodType: user.bloodType, city: user.city, age: user.age, eligibility: user.eligibility, availability: user.availability, role: user.role },
+            user: { id: user._id, name: user.name, email: user.email, phone: user.phone, bloodType: user.bloodType, city: user.city, age: user.age, eligibility: user.eligibility, availability: user.availability, role: user.role },
         });
     } catch (error) {
         console.error("Login error:", error.message);

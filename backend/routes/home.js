@@ -11,9 +11,9 @@ router.get("/", async (req, res) => {
             BloodRequest.countDocuments(),
             BloodRequest.countDocuments({ status: "Open" }),
             BloodRequest.find({ status: { $in: ["Open", "Matched"] } })
-                .sort({ createdAt: -1 })
+                .sort({ urgencyLevel: -1, createdAt: -1 })
                 .limit(6)
-                .select("patientName bloodType hospital city urgency status createdAt")
+                .select("patientName bloodType hospital city urgencyLevel urgency status createdAt")
                 .lean(),
         ]);
 
@@ -30,6 +30,7 @@ router.get("/", async (req, res) => {
                 bloodType: request.bloodType,
                 hospital: request.hospital,
                 city: request.city,
+                urgencyLevel: request.urgencyLevel || (request.urgency === "Urgent" || request.urgency === "Critical" ? "Emergency" : "Normal"),
                 urgency: request.urgency,
                 status: request.status,
             })),

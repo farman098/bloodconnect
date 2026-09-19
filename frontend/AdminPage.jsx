@@ -17,7 +17,7 @@ function formatDate(value) {
 
 function AdminTopbar() {
     return <header className="topbar">
-        <a className="brand" href="/index.html"><span>P</span>Pulse</a>
+        <a className="brand" href="/index.html"><span>B</span>BloodConnect</a>
         <div className="admin-topbar-actions">
             <a className="admin-home-link" href="/index.html">View site</a>
             <button className="logout" onClick={ () => { clearSession(); goTo("/login.html"); } }>Log out</button>
@@ -28,7 +28,7 @@ function AdminTopbar() {
 function AdminCard({ item, kind, onStatusChange }) {
     if (kind === "requests") return <article className="message-card">
         <div className="message-meta"><strong>{ item.patientName } · { item.bloodType }</strong><span>{ formatDate(item.createdAt) }</span></div>
-        <p>{ item.hospital }, { item.city } · { item.units } unit(s) · { item.urgency }</p>
+        <p>{ item.hospital }, { item.city } · { item.units } unit(s) · { item.urgencyLevel || item.urgency }</p>
         <label>Status<select value={ item.status || "Open" } onChange={ (event) => onStatusChange(`requests/${item._id}`, event.target.value) }>{ requestStatuses.map((status) => <option key={ status }>{ status }</option>) }</select></label>
     </article>;
 

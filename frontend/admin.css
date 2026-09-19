@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap");
 
 :root {
     --paper: #f5f0e6;
@@ -437,5 +437,190 @@ a {
     .admin-filters select {
         min-width: 0;
         width: 100%;
+    }
+}
+
+/* Shared BloodConnect product styling */
+:root {
+    --paper: #f7f1ea;
+    --paper-2: #eee2d5;
+    --ink: #170d0c;
+    --soft: #766b65;
+    --red: #c81e3a;
+    --deep-red: #8c0f27;
+    --gold: #c89b3c;
+    --teal: #126b68;
+    --line: #d9cec4;
+    --white: #fffaf5
+}
+
+body {
+    background:
+        radial-gradient(circle at 8% 8%, rgba(200, 155, 60, .1), transparent 20rem),
+        var(--paper);
+    font-family: "DM Sans", sans-serif
+}
+
+.topbar {
+    min-height: 76px;
+    padding: 16px clamp(20px, 6vw, 84px);
+    background: linear-gradient(110deg, #170d0c 0%, #35101b 58%, #4e0a1c 100%);
+    border-bottom: 1px solid rgba(255, 250, 245, .12);
+    box-shadow: 0 12px 32px rgba(23, 13, 12, .12)
+}
+
+.topbar .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--white);
+    font-family: "Fraunces", serif;
+    font-size: 28px;
+    font-weight: 600
+}
+
+.topbar .brand span {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 11px 11px 11px 4px;
+    transform: rotate(-45deg);
+    background: var(--red);
+    color: var(--white);
+    font-family: "DM Mono", monospace;
+    font-size: 13px;
+    box-shadow: 0 0 0 6px rgba(200, 30, 58, .16), 0 7px 16px rgba(200, 0, 45, .3)
+}
+
+.admin-topbar-actions {
+    gap: 14px
+}
+
+.admin-home-link,
+.logout {
+    border-radius: 999px;
+    transition: transform .2s, background .2s, border-color .2s
+}
+
+.admin-home-link {
+    color: rgba(255, 250, 245, .76)
+}
+
+.admin-home-link:hover {
+    color: var(--white)
+}
+
+.logout {
+    padding: 10px 16px;
+    border: 1px solid rgba(255, 250, 245, .28);
+    background: transparent;
+    color: var(--white)
+}
+
+.logout:hover {
+    border-color: var(--white);
+    background: rgba(255, 250, 245, .1)
+}
+
+.heading h1,
+.admin-panel h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    letter-spacing: 0
+}
+
+.heading h1 {
+    color: var(--ink)
+}
+
+.eyebrow {
+    font-family: "DM Mono", monospace;
+    letter-spacing: 2px
+}
+
+.stats-grid {
+    gap: 12px
+}
+
+.stat-card {
+    min-height: 126px;
+    padding: 24px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--white);
+    box-shadow: 0 12px 24px rgba(23, 13, 12, .06)
+}
+
+.stat-card:nth-child(1) strong {
+    color: var(--red)
+}
+
+.stat-card:nth-child(2) strong {
+    color: var(--teal)
+}
+
+.stat-card:nth-child(3) strong {
+    color: var(--gold)
+}
+
+.stat-card:nth-child(4) strong {
+    color: var(--deep-red)
+}
+
+.admin-toolbar,
+.message-card,
+.admin-filters input,
+.admin-filters select,
+.message-card select {
+    border-color: var(--line);
+    border-radius: 12px;
+    background: rgba(255, 250, 245, .82)
+}
+
+.admin-toolbar {
+    box-shadow: 0 10px 22px rgba(23, 13, 12, .04)
+}
+
+.refresh-button,
+.admin-error button {
+    border-radius: 999px
+}
+
+.admin-tabs {
+    gap: 6px;
+    border-bottom-color: var(--line)
+}
+
+.tab {
+    border-radius: 999px 999px 0 0;
+    transition: color .2s, background .2s
+}
+
+.tab.active {
+    background: rgba(200, 30, 58, .08);
+    border-bottom-color: var(--red);
+    color: var(--red)
+}
+
+.message-card {
+    border-left: 4px solid var(--red);
+    box-shadow: 0 10px 25px rgba(23, 13, 12, .05)
+}
+
+.message-card:hover {
+    box-shadow: 0 16px 30px rgba(23, 13, 12, .09);
+    transform: translateY(-2px)
+}
+
+.role-badge {
+    border-radius: 999px;
+    background: #f3e4be
+}
+
+@media (max-width: 640px) {
+    .topbar .brand {
+        font-size: 24px
     }
 }

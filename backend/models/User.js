@@ -25,6 +25,7 @@ const userSchema = new mongoose.Schema(
             required: true,
         },
         city: { type: String, trim: true, maxlength: 100 },
+        phone: { type: String, trim: true, maxlength: 30 },
         age: { type: Number, min: 16, max: 100 },
         eligibility: {
             type: String,
@@ -42,6 +43,8 @@ const userSchema = new mongoose.Schema(
             location: { type: String, trim: true },
             units: { type: Number, min: 1, default: 1 },
         }],
+        totalDonations: { type: Number, min: 0, default: 0 },
+        badgeLevel: { type: String, enum: ["Bronze", "Silver", "Gold"], default: "Bronze" },
         role: {
             type: String,
             enum: ["donor", "requester", "admin"],

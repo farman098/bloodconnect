@@ -1,0 +1,29 @@
+.animated-background {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    overflow: hidden;
+    background: linear-gradient(120deg, #170d0c 0%, #4e0a1c 34%, #126b68 68%, #170d0c 100%);
+    background-size: 220% 220%;
+    animation: bloodconnect-gradient-drift 18s ease-in-out infinite;
+}
+
+/* Move only the composited background position for a smooth, low-cost loop. */
+@keyframes bloodconnect-gradient-drift {
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animated-background {
+        animation: none;
+        background-position: 50% 50%;
+    }
+}

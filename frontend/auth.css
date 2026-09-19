@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap");
 
 :root {
     --paper: #f5f0e6;
@@ -53,7 +53,7 @@ a {
 }
 
 .auth-art::after {
-    content: 'PULSE / DONOR COMMUNITY';
+    content: 'BLOODCONNECT / DONOR COMMUNITY';
     position: absolute;
     top: 42px;
     left: 8%;
@@ -240,4 +240,80 @@ a {
     .auth-brand {
         margin-bottom: 40px;
     }
+}
+
+:root {
+    --paper: #f7f1ea;
+    --ink: #170d0c;
+    --soft: #766b65;
+    --red: #c81e3a;
+    --red-dark: #8c0f27;
+    --line: #d9cec4;
+    --white: #fffaf5
+}
+
+body {
+    background: var(--paper);
+    font-family: "DM Sans", sans-serif
+}
+
+.auth-page {
+    background: var(--paper)
+}
+
+.auth-art {
+    background:
+        linear-gradient(135deg, rgba(200, 30, 58, .2), transparent 52%),
+        var(--ink)
+}
+
+.auth-art h1,
+.auth-panel h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    letter-spacing: 0
+}
+
+.auth-art h1 {
+    line-height: .98
+}
+
+.auth-art h1 span {
+    color: #df6579
+}
+
+.auth-panel {
+    width: min(460px, 84%)
+}
+
+.auth-brand {
+    font-family: "Fraunces", serif;
+    font-weight: 600
+}
+
+.auth-brand-mark {
+    border: 0;
+    background: var(--red);
+    color: var(--white);
+    box-shadow: 0 0 0 6px rgba(200, 30, 58, .12)
+}
+
+.auth-form input,
+.auth-form select {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--white);
+    transition: border-color .2s, box-shadow .2s
+}
+
+.auth-form input:focus,
+.auth-form select:focus {
+    border-color: var(--red);
+    box-shadow: 0 0 0 4px rgba(200, 30, 58, .1)
+}
+
+.auth-submit {
+    border-radius: 999px;
+    background: var(--red);
+    border-color: var(--red)
 }

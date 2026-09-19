@@ -4,11 +4,12 @@ import Notification from "../models/Notification.js";
 import Response from "../models/Response.js";
 import User from "../models/User.js";
 import requireAuth from "../middleware/auth.js";
-import { formatUrgency, getDonationEligibility, urgencyWeight } from "../utils/eligibility.js";
+import { formatUrgency, getDonationEligibility, urgencyLevelWeight, urgencyWeight } from "../utils/eligibility.js";
+import { acceptRequest, cancelAcceptance, completeRequest, sendThankYou } from "../controllers/requestActions.js";
 
 const router = express.Router();
 const bloodTypes = new Set(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]);
-const requestFields = ["patientName", "bloodType", "units", "hospital", "city", "urgency"];
+const requestFields = ["patientName", "bloodType", "units", "hospital", "city", "urgencyLevel", "urgency"];
 
 const cleanText = (value, max = 120) => typeof value === "string" ? value.trim().slice(0, max) : value;
 
@@ -19,6 +20,7 @@ function serializeFeedRequest(request, donor, response) {
         bloodType: request.bloodType,
         hospital: request.hospital,
         city: request.city,
+        urgencyLevel: request.urgencyLevel || (urgencyLevelWeight(request.urgency) ? "Emergency" : "Normal"),
         urgency: request.urgency,
         urgencyLabel: formatUrgency(request.urgency),
         units: request.units,
@@ -43,14 +45,19 @@ router.get("/", requireAuth, async (req, res) => {
             if (!bloodTypes.has(bloodType)) return res.status(400).json({ message: "Invalid blood group filter." });
             filter.bloodType = bloodType;
         }
-        const requests = await BloodRequest.find(filter).sort({ createdAt: -1 }).limit(100).lean();
+        const requests = await BloodRequest.aggregate([
+            { $match: filter },
+            { $addFields: { urgencyPriority: { $cond: [{ $or: [{ $eq: ["$urgencyLevel", "Emergency"] }, { $in: ["$urgency", ["Urgent", "Critical"]] }] }, 1, 0] } } },
+            { $sort: { urgencyPriority: -1, createdAt: -1 } },
+            { $limit: 100 },
+        ]);
         const responses = await Response.find({ donorId: donor._id, requestId: { $in: requests.map((item) => item._id) } }).lean();
         const responseByRequest = new Map(responses.map((item) => [String(item.requestId), item]));
         const feed = requests.map((request) => serializeFeedRequest(request, donor, responseByRequest.get(String(request._id))));
         feed.sort((left, right) => {
-            if (sort === "urgent") return urgencyWeight(right.urgency) - urgencyWeight(left.urgency) || new Date(right.createdAt) - new Date(left.createdAt);
-            if (sort === "nearest") return (left.city === donor.city ? -1 : 1) - (right.city === donor.city ? -1 : 1) || new Date(right.createdAt) - new Date(left.createdAt);
-            return new Date(right.createdAt) - new Date(left.createdAt);
+            if (sort === "urgent") return urgencyLevelWeight(right.urgencyLevel, right.urgency) - urgencyLevelWeight(left.urgencyLevel, left.urgency) || urgencyWeight(right.urgency) - urgencyWeight(left.urgency) || new Date(right.createdAt) - new Date(left.createdAt);
+            if (sort === "nearest") return urgencyLevelWeight(right.urgencyLevel, right.urgency) - urgencyLevelWeight(left.urgencyLevel, left.urgency) || (left.city === donor.city ? -1 : 1) - (right.city === donor.city ? -1 : 1) || new Date(right.createdAt) - new Date(left.createdAt);
+            return urgencyLevelWeight(right.urgencyLevel, right.urgency) - urgencyLevelWeight(left.urgencyLevel, left.urgency) || new Date(right.createdAt) - new Date(left.createdAt);
         });
         res.json(feed);
     } catch (error) {
@@ -59,12 +66,23 @@ router.get("/", requireAuth, async (req, res) => {
     }
 });
 
+router.get("/mine", requireAuth, async (req, res) => {
+    try {
+        if (req.user.role !== "requester") return res.status(403).json({ message: "Only requesters can view their blood requests." });
+        const requests = await BloodRequest.find({ createdBy: req.user.id }).populate("matchedDonorId", "name email phone city").sort({ createdAt: -1 }).limit(100).lean();
+        res.json(requests);
+    } catch (error) {
+        console.error("Requester requests error:", error.message);
+        res.status(500).json({ message: "Unable to load your blood requests." });
+    }
+});
+
 router.get("/activity", requireAuth, async (req, res) => {
     try {
         if (req.user.role !== "donor") return res.status(403).json({ message: "Only donors can view donor activity." });
         const [donor, responses] = await Promise.all([
             User.findById(req.user.id).select("lastDonationDate donationHistory").lean(),
-            Response.find({ donorId: req.user.id }).populate("requestId", "patientName bloodType units hospital city urgency status").sort({ updatedAt: -1 }).lean(),
+            Response.find({ donorId: req.user.id }).populate({ path: "requestId", select: "patientName bloodType units unitsStillNeeded hospital city urgency urgencyLevel status matchedDonorId confirmedDate completedDate createdBy", populate: { path: "createdBy", select: "name email phone city" } }).sort({ updatedAt: -1 }).lean(),
         ]);
         res.json({ totalDonations: donor?.donationHistory?.length || 0, lastDonationDate: donor?.lastDonationDate || null, acceptedRequests: responses });
     } catch (error) {
@@ -84,53 +102,17 @@ router.get("/notifications", requireAuth, async (req, res) => {
 
 router.get("/my-responses", requireAuth, async (req, res) => {
     try {
-        const responses = await Response.find({ donorId: req.user.id }).populate("requestId", "patientName bloodType units hospital city urgency status").sort({ respondedAt: -1 });
+        const responses = await Response.find({ donorId: req.user.id }).populate({ path: "requestId", select: "patientName bloodType units hospital city urgency urgencyLevel status matchedDonorId confirmedDate completedDate createdBy", populate: { path: "createdBy", select: "name email phone city" } }).sort({ respondedAt: -1 });
         res.json(responses);
     } catch {
         res.status(500).json({ message: "Unable to load your responses." });
     }
 });
 
-router.post("/:id/accept", requireAuth, async (req, res) => {
-    try {
-        if (req.user.role !== "donor") return res.status(403).json({ message: "Only donors can accept blood requests." });
-        const donor = await User.findById(req.user.id).select("name email bloodType city lastDonationDate");
-        const request = await BloodRequest.findById(req.params.id);
-        if (!donor || !request) return res.status(404).json({ message: "Blood request not found." });
-        if (request.bloodType !== donor.bloodType) return res.status(403).json({ message: "Your blood group does not match this request." });
-        if (!["Open", "Pending"].includes(request.status)) return res.status(409).json({ message: "This request is no longer available." });
-        const eligibility = getDonationEligibility(donor.lastDonationDate);
-        if (!eligibility.eligible) return res.status(403).json({ message: `You are not eligible to donate yet. Eligible on ${eligibility.eligibleOn.toISOString().slice(0, 10)}.` });
-
-        const response = await Response.findOneAndUpdate({ requestId: request._id, donorId: donor._id }, { status: "accepted", respondedAt: new Date() }, { upsert: true, new: true, setDefaultsOnInsert: true });
-        request.donorResponses = request.donorResponses.filter((item) => String(item.donor) !== String(donor._id));
-        request.donorResponses.push({ donor: donor._id, response: "Accepted" });
-        request.status = "Matched";
-        await request.save();
-        const requester = await User.findById(request.createdBy).select("name email city");
-        if (requester) await Notification.create({ recipientId: requester._id, requestId: request._id, type: "accepted", message: `${donor.name} accepted the ${request.bloodType} request.` });
-        res.json({ response, request: { id: request._id, status: request.status }, requester: requester ? requestContact(requester) : null, donor: requestContact(donor) });
-    } catch (error) {
-        console.error("Accept request error:", error.message);
-        res.status(500).json({ message: "Unable to accept this request." });
-    }
-});
-
-router.post("/:id/cancel", requireAuth, async (req, res) => {
-    try {
-        if (req.user.role !== "donor") return res.status(403).json({ message: "Only donors can cancel an acceptance." });
-        const response = await Response.findOneAndUpdate({ requestId: req.params.id, donorId: req.user.id, status: "accepted" }, { status: "cancelled", respondedAt: new Date() }, { new: true });
-        if (!response) return res.status(404).json({ message: "No active acceptance found for this request." });
-        const request = await BloodRequest.findByIdAndUpdate(req.params.id, { status: "Pending" }, { new: true });
-        if (!request) return res.status(404).json({ message: "Blood request not found." });
-        const requester = await User.findById(request.createdBy).select("name");
-        if (requester) await Notification.create({ recipientId: requester._id, requestId: request._id, type: "cancelled", message: "A donor cancelled their acceptance. The request is available again." });
-        res.json({ response, request: { id: request._id, status: request.status } });
-    } catch (error) {
-        console.error("Cancel request error:", error.message);
-        res.status(500).json({ message: "Unable to cancel this acceptance." });
-    }
-});
+router.post("/:id/accept", requireAuth, acceptRequest);
+router.post("/:id/cancel", requireAuth, cancelAcceptance);
+router.post("/:id/complete", requireAuth, completeRequest);
+router.post("/:id/thank-you", requireAuth, sendThankYou);
 
 router.patch("/:id/respond", requireAuth, async (req, res) => {
     if (req.body.response === "Accepted") return res.status(410).json({ message: "Use the acceptance confirmation flow." });
@@ -151,11 +133,15 @@ router.post("/", requireAuth, async (req, res) => {
         values.city = cleanText(values.city, 100);
         values.bloodType = cleanText(values.bloodType, 3);
         values.units = Number(values.units);
+        values.urgencyLevel = values.urgencyLevel || (values.urgency === "Urgent" || values.urgency === "Critical" ? "Emergency" : "Normal");
+        if (!["Normal", "Emergency"].includes(values.urgencyLevel)) return res.status(400).json({ message: "Please provide a valid urgency level." });
         if (!values.patientName || !values.hospital || !values.city || !bloodTypes.has(values.bloodType) || !Number.isInteger(values.units) || values.units < 1 || values.units > 20) return res.status(400).json({ message: "Please provide valid blood request details." });
         const request = await BloodRequest.create({ ...values, createdBy: req.user.id });
-        const donors = await User.find({ role: "donor", bloodType: request.bloodType, availability: "Available", $or: [{ city: request.city }, { city: { $exists: false } }] }).select("_id lastDonationDate").lean();
+        const donorFilter = { role: "donor", bloodType: request.bloodType, availability: "Available" };
+        if (request.urgencyLevel !== "Emergency") donorFilter.$or = [{ city: request.city }, { city: { $exists: false } }];
+        const donors = await User.find(donorFilter).select("_id lastDonationDate").lean();
         const eligibleDonors = donors.filter((donor) => getDonationEligibility(donor.lastDonationDate).eligible);
-        if (eligibleDonors.length) await Notification.insertMany(eligibleDonors.map((donor) => ({ recipientId: donor._id, requestId: request._id, type: "new-request", message: `A new ${request.bloodType} blood request is available in ${request.city}.` })));
+        if (eligibleDonors.length) await Notification.insertMany(eligibleDonors.map((donor) => ({ recipientId: donor._id, requestId: request._id, type: "new-request", message: request.urgencyLevel === "Emergency" ? `Emergency: a ${request.bloodType} blood request needs help in ${request.city}.` : `A new ${request.bloodType} blood request is available in ${request.city}.` })));
         res.status(201).json(request);
     } catch (error) {
         console.error("Create request error:", error.message);

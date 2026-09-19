@@ -29,6 +29,7 @@ const responseSchema = new mongoose.Schema(
             type: Date,
             default: Date.now,
         },
+        confirmedDate: { type: Date, default: null },
     },
     { timestamps: true },
 );

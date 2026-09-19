@@ -1,0 +1,122 @@
+:root {
+    --motion-duration: 250ms;
+    --motion-ease: ease-in-out;
+    --motion-shadow: 0 14px 30px rgba(23, 13, 12, .12);
+}
+
+/* Reusable interaction utilities for cards and controls. */
+.hover-lift,
+.hover-scale,
+.hover-underline {
+    transition: transform var(--motion-duration) var(--motion-ease),
+        box-shadow var(--motion-duration) var(--motion-ease),
+        color var(--motion-duration) var(--motion-ease),
+        background-color var(--motion-duration) var(--motion-ease),
+        border-color var(--motion-duration) var(--motion-ease);
+}
+
+.hover-lift,
+.hover-scale,
+.hover-underline,
+button,
+a {
+    cursor: pointer;
+}
+
+.hover-underline {
+    position: relative;
+}
+
+.hover-underline::after {
+    position: absolute;
+    left: 0;
+    right: 100%;
+    bottom: -7px;
+    height: 2px;
+    background: currentColor;
+    content: "";
+    transition: right var(--motion-duration) var(--motion-ease);
+}
+
+/* Hover is limited to pointer devices so touch layouts never depend on it. */
+@media (hover: hover) and (pointer: fine) {
+    .hover-lift:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--motion-shadow);
+    }
+
+    .hover-scale:hover {
+        transform: scale(1.03);
+    }
+
+    .hover-underline:hover::after {
+        right: 0;
+    }
+
+    :where(.red-button, .outline-button, .white-button, .dark-outline, .nav-cta,
+        .submit-btn, .request-submit, .auth-submit, .button, .request-action,
+        .refresh-button) {
+        transition: transform var(--motion-duration) var(--motion-ease),
+            background-color var(--motion-duration) var(--motion-ease),
+            border-color var(--motion-duration) var(--motion-ease),
+            box-shadow var(--motion-duration) var(--motion-ease);
+    }
+
+    :where(.red-button, .outline-button, .white-button, .dark-outline, .nav-cta,
+        .submit-btn, .request-submit, .auth-submit, .button, .request-action,
+        .refresh-button):hover {
+        transform: translateY(-2px) scale(1.02);
+    }
+
+    :where(.feature-card, .stat-card, .request-item, .request-card, .message-card,
+        .process-card, .drive-card, .step, .activity-item) {
+        transition: transform var(--motion-duration) var(--motion-ease),
+            box-shadow var(--motion-duration) var(--motion-ease),
+            border-color var(--motion-duration) var(--motion-ease);
+    }
+
+    :where(.feature-card, .stat-card, .request-item, .request-card, .message-card,
+        .process-card, .drive-card, .step, .activity-item):hover {
+        transform: translateY(-4px);
+        box-shadow: var(--motion-shadow);
+    }
+
+    :where(.navbar nav a, .navbar .login, .admin-home-link, .auth-switch a,
+        .footer-links a) {
+        position: relative;
+        transition: color var(--motion-duration) var(--motion-ease);
+    }
+
+    :where(.navbar nav a, .navbar .login, .admin-home-link, .auth-switch a,
+        .footer-links a)::after {
+        position: absolute;
+        left: 0;
+        right: 100%;
+        bottom: -7px;
+        height: 2px;
+        background: currentColor;
+        content: "";
+        transition: right var(--motion-duration) var(--motion-ease);
+    }
+
+    :where(.navbar nav a, .navbar .login, .admin-home-link, .auth-switch a,
+        .footer-links a):hover::after {
+        right: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .hover-lift,
+    .hover-scale,
+    .hover-underline,
+    button,
+    a,
+    :where(.red-button, .outline-button, .white-button, .dark-outline, .nav-cta,
+        .submit-btn, .request-submit, .auth-submit, .button, .request-action,
+        .refresh-button, .feature-card, .stat-card, .request-item, .request-card,
+        .message-card, .process-card, .drive-card, .step, .activity-item) {
+        animation: none !important;
+        transition: none !important;
+    }
+}
