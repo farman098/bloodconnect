@@ -5,7 +5,7 @@ import Response from "../models/Response.js";
 import User from "../models/User.js";
 import requireAuth from "../middleware/auth.js";
 import { formatUrgency, getDonationEligibility, urgencyLevelWeight, urgencyWeight } from "../utils/eligibility.js";
-import { acceptRequest, cancelAcceptance, completeRequest, sendThankYou } from "../controllers/requestActions.js";
+import { acceptRequest, cancelAcceptance, completeRequest, getMatchedContact, sendThankYou } from "../controllers/requestActions.js";
 
 const router = express.Router();
 const bloodTypes = new Set(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]);
@@ -111,6 +111,7 @@ router.get("/my-responses", requireAuth, async (req, res) => {
 
 router.post("/:id/accept", requireAuth, acceptRequest);
 router.post("/:id/cancel", requireAuth, cancelAcceptance);
+router.get("/:id/contact", requireAuth, getMatchedContact);
 router.post("/:id/complete", requireAuth, completeRequest);
 router.post("/:id/thank-you", requireAuth, sendThankYou);
 

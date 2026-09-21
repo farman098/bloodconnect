@@ -120,6 +120,20 @@ export async function cancelAcceptance(req, res) {
     }
 }
 
+export async function getMatchedContact(req, res) {
+    try {
+        if (req.user.role !== "donor") return res.status(403).json({ message: "Only donors can view requester contact details." });
+        const request = await BloodRequest.findOne({ _id: req.params.id, matchedDonorId: req.user.id, status: "Matched" }).lean();
+        if (!request) return res.status(404).json({ message: "No active matched request found." });
+        const requester = await User.findById(request.createdBy).select("name email phone city").lean();
+        if (!requester) return res.status(404).json({ message: "Requester contact is unavailable." });
+        res.json({ contact: contactDetails(requester) });
+    } catch (error) {
+        console.error("Matched contact error:", error.message);
+        res.status(500).json({ message: "Unable to load requester contact." });
+    }
+}
+
 export async function completeRequest(req, res) {
     try {
         if (!['requester', 'admin'].includes(req.user.role)) return res.status(403).json({ message: "Only the requester or an admin can complete this request." });
